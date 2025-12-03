@@ -1,0 +1,91 @@
+{
+  "folders": [
+    {
+      "name": "Root",
+      "path": "."
+    },
+    {
+      "name": "API Service",
+      "path": "services/api_service"
+    },
+    {
+      "name": "Ingestion Service",
+      "path": "services/ingestion_service"
+    },
+    {
+      "name": "Analytics Service",
+      "path": "services/analytics_service"
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "python3",
+    "python.analysis.typeCheckingMode": "basic",
+    "editor.formatOnSave": true,
+    "editor.rulers": [88],
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.organizeImports": "explicit"
+      }
+    },
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/.pytest_cache": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "charliermarsh.ruff",
+      "ms-azuretools.vscode-docker",
+      "mtxr.sqltools",
+      "ckolkman.vscode-postgres"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "API Service",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": ["app.main:app", "--reload", "--port", "8000"],
+        "cwd": "${workspaceFolder}/services/api_service",
+        "env": {
+          "DATABASE_URL": "postgresql+psycopg://aegis:aegis@localhost:5432/aegis",
+          "JWT_SECRET": "dev-secret",
+          "JWT_ALGORITHM": "HS256",
+          "ACCESS_TOKEN_EXPIRE_MINUTES": "60"
+        }
+      },
+      {
+        "name": "Ingestion Service",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": ["app.main:app", "--reload", "--port", "8001"],
+        "cwd": "${workspaceFolder}/services/ingestion_service",
+        "env": {
+          "DATABASE_URL": "postgresql+psycopg://aegis:aegis@localhost:5432/aegis",
+          "RABBITMQ_URL": "amqp://guest:guest@localhost:5672/"
+        }
+      },
+      {
+        "name": "Analytics Service",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": ["app.main:app", "--reload", "--port", "8002"],
+        "cwd": "${workspaceFolder}/services/analytics_service",
+        "env": {
+          "DATABASE_URL": "postgresql+psycopg://aegis:aegis@localhost:5432/aegis",
+          "RABBITMQ_URL": "amqp://guest:guest@localhost:5672/"
+        }
+      }
+    ]
+  }
+}
+
