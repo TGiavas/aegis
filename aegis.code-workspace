@@ -49,7 +49,7 @@
     "configurations": [
       {
         "name": "API Service",
-        "type": "debugpy",
+        "type": "python",
         "request": "launch",
         "module": "uvicorn",
         "args": ["app.main:app", "--reload", "--port", "8000"],
@@ -63,7 +63,7 @@
       },
       {
         "name": "Ingestion Service",
-        "type": "debugpy",
+        "type": "python",
         "request": "launch",
         "module": "uvicorn",
         "args": ["app.main:app", "--reload", "--port", "8001"],
@@ -75,7 +75,7 @@
       },
       {
         "name": "Analytics Service",
-        "type": "debugpy",
+        "type": "python",
         "request": "launch",
         "module": "uvicorn",
         "args": ["app.main:app", "--reload", "--port", "8002"],
