@@ -9,6 +9,7 @@ alembic
 
 # Configuration
 pydantic-settings
+email-validator
 
 # Authentication
 python-jose[cryptography]
