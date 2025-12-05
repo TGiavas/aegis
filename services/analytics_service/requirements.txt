@@ -1,0 +1,18 @@
+# Web framework (for health check endpoint)
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy[asyncio]
+psycopg[binary,pool]
+
+# Configuration
+pydantic-settings
+
+# Message queue (RabbitMQ)
+aio-pika
+
+# Testing
+pytest
+pytest-asyncio
+

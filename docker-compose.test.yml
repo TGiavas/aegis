@@ -1,0 +1,78 @@
+# =============================================================================
+# Docker Compose for Running Tests
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+#
+# This will:
+#   1. Start a PostgreSQL database
+#   2. Start RabbitMQ
+#   3. Run tests for each service
+#   4. Exit with the test result code
+
+services:
+  # ===================
+  # Test Database
+  # ===================
+  # Separate from the main DB to avoid polluting dev data
+  test_db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: aegis_test
+      POSTGRES_PASSWORD: aegis_test
+      POSTGRES_DB: aegis_test
+    # No volume - we want a fresh DB each test run
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  # ===================
+  # Test RabbitMQ
+  # ===================
+  test_rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ===================
+  # API Service Tests
+  # ===================
+  test_api_service:
+    build:
+      context: ./services/api_service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://aegis_test:aegis_test@test_db:5432/aegis_test
+      JWT_SECRET: test-secret-key
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      DEBUG: "true"
+    volumes:
+      # Mount source code so we have access to migrations
+      - ./services/api_service:/app
+    # Run migrations FIRST, then run tests
+    command: ["sh", "-c", "alembic upgrade head && pytest --tb=short"]
+    depends_on:
+      test_db:
+        condition: service_healthy
+
+  # ===================
+  # Ingestion Service Tests (will be added later)
+  # ===================
+  # test_ingestion_service:
+  #   ...
+
+  # ===================
+  # Analytics Service Tests (will be added later)
+  # ===================
+  # test_analytics_service:
+  #   ...
+

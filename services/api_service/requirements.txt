@@ -1,0 +1,22 @@
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy[asyncio]
+psycopg[binary,pool]
+alembic
+
+# Configuration
+pydantic-settings
+
+# Authentication
+python-jose[cryptography]
+bcrypt
+python-multipart
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+

@@ -1,4 +1,4 @@
-# Use Python 3.12 slim image (smaller than full image)
+# Use Python 3.14 slim image (smaller than full image)
 FROM python:3.14-slim
 
 # Set working directory inside the container
