@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   AEGIS DARK THEME
+   
+   Tailwind CSS 4 uses CSS-first configuration with @theme
+   ============================================================================= */
+
+@theme {
+  /* Color palette - monitoring dashboard aesthetic */
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #12121a;
+  --color-bg-tertiary: #1a1a24;
+  --color-bg-hover: #22222e;
+  
+  --color-border: #2a2a3a;
+  --color-border-hover: #3a3a4a;
+  
+  --color-text-primary: #f0f0f5;
+  --color-text-secondary: #a0a0b0;
+  --color-text-muted: #606070;
+  
+  /* Accent colors */
+  --color-accent-cyan: #00d4ff;
+  --color-accent-green: #00ff88;
+  --color-accent-yellow: #ffcc00;
+  --color-accent-red: #ff4455;
+  --color-accent-purple: #aa66ff;
+  
+  /* Severity colors */
+  --color-severity-info: #00d4ff;
+  --color-severity-warn: #ffcc00;
+  --color-severity-error: #ff4455;
+  --color-severity-critical: #ff0044;
+  
+  /* Alert level colors */
+  --color-level-low: #00d4ff;
+  --color-level-medium: #ffcc00;
+  --color-level-high: #ff4455;
+  --color-level-critical: #ff0044;
+  
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
+
+html {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--color-accent-cyan);
+  outline-offset: 2px;
+}

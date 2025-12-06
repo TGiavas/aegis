@@ -109,6 +109,48 @@ services:
       timeout: 5s
       retries: 5
 
+  # ===================
+  # Frontend (React)
+  # ===================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      # Mount source code for hot reload
+      - ./frontend:/app
+      # Prevent node_modules from being overwritten by mount
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api_service
+    environment:
+      # Vite needs this for HMR in Docker
+      VITE_HMR_HOST: localhost
+
+  # ===================
+  # Event Simulator
+  # ===================
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    environment:
+      API_SERVICE_URL: http://api_service:8000
+      INGESTION_SERVICE_URL: http://ingestion_service:8001
+      SIMULATOR_USER_EMAIL: simulator@example.com
+      SIMULATOR_USER_PASSWORD: simulator123
+      EVENTS_PER_MINUTE: "30"
+    depends_on:
+      api_service:
+        condition: service_healthy
+      ingestion_service:
+        condition: service_healthy
+    # Disabled by default - enable with: docker compose up simulator
+    profiles:
+      - simulator
+
 volumes:
   postgres_data:
   rabbitmq_data:
