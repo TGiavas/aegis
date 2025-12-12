@@ -17,6 +17,8 @@ from app.api.routes_projects import router as projects_router
 from app.api.routes_api_keys import router as api_keys_router
 from app.api.routes_events import router as events_router
 from app.api.routes_alerts import router as alerts_router
+from app.api.routes_alert_rules import global_router as alert_rules_global_router
+from app.api.routes_alert_rules import project_router as alert_rules_project_router
 
 
 # =============================================================================
@@ -98,6 +100,16 @@ app.include_router(
 app.include_router(
     alerts_router,
     prefix="/api/v1",  # Full path: /api/v1/projects/{id}/alerts, etc.
+)
+
+app.include_router(
+    alert_rules_global_router,
+    prefix="/api/v1",  # Full path: /api/v1/alert-rules, etc.
+)
+
+app.include_router(
+    alert_rules_project_router,
+    prefix="/api/v1",  # Full path: /api/v1/projects/{id}/alert-rules, etc.
 )
 
 

@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EventsPage } from './pages/EventsPage'
 import { AlertsPage } from './pages/AlertsPage'
+import { RulesPage } from './pages/RulesPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/rules" element={<RulesPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
             </Route>
           </Route>

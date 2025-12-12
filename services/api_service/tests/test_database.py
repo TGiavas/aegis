@@ -20,6 +20,7 @@ from app.models.project import Project
 from app.models.api_key import ApiKey
 from app.models.event import Event
 from app.models.alert import Alert
+from app.models.alert_rule import AlertRule
 
 
 # =============================================================================
@@ -141,8 +142,18 @@ class TestDatabaseSchema:
         assert exists is True, "Table 'alerts' should exist"
 
     @pytest.mark.asyncio
+    async def test_alert_rules_table_exists(self, db_session: AsyncSession):
+        """The 'alert_rules' table should exist."""
+        result = await db_session.execute(
+            text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alert_rules')")
+        )
+        exists = result.scalar()
+        
+        assert exists is True, "Table 'alert_rules' should exist"
+
+    @pytest.mark.asyncio
     async def test_all_tables_count(self, db_session: AsyncSession):
-        """We should have exactly 6 tables (5 models + alembic_version)."""
+        """We should have exactly 7 tables (6 models + alembic_version)."""
         result = await db_session.execute(
             text("""
                 SELECT COUNT(*) 
@@ -153,8 +164,8 @@ class TestDatabaseSchema:
         )
         count = result.scalar()
         
-        # 5 model tables + 1 alembic_version table = 6
-        assert count == 6, f"Expected 6 tables, found {count}"
+        # 6 model tables + 1 alembic_version table = 7
+        assert count == 7, f"Expected 7 tables, found {count}"
 
 
 # =============================================================================
@@ -217,4 +228,76 @@ class TestUserModel:
                 """)
             )
             await db_session.flush()
+
+
+class TestAlertRuleModel:
+    """Test CRUD operations on the AlertRule model."""
+
+    @pytest.mark.asyncio
+    async def test_create_global_rule(self, db_session: AsyncSession):
+        """Can create a global alert rule (project_id = NULL)."""
+        result = await db_session.execute(
+            text("""
+                INSERT INTO alert_rules (name, field, operator, value, alert_level, message_template)
+                VALUES ('test_rule', 'severity', '==', 'CRITICAL', 'HIGH', 'Test message')
+                RETURNING id, project_id
+            """)
+        )
+        row = result.fetchone()
+        
+        assert row[0] is not None, "Rule should have an ID"
+        assert row[1] is None, "Global rule should have NULL project_id"
+
+    @pytest.mark.asyncio
+    async def test_global_rule_name_unique(self, db_session: AsyncSession):
+        """Cannot create two global rules with the same name."""
+        from sqlalchemy.exc import IntegrityError
+        
+        # Insert first global rule
+        await db_session.execute(
+            text("""
+                INSERT INTO alert_rules (name, field, operator, value, alert_level, message_template)
+                VALUES ('unique_rule', 'severity', '==', 'CRITICAL', 'HIGH', 'Message 1')
+            """)
+        )
+        
+        # Try to insert second global rule with same name
+        with pytest.raises(IntegrityError):
+            await db_session.execute(
+                text("""
+                    INSERT INTO alert_rules (name, field, operator, value, alert_level, message_template)
+                    VALUES ('unique_rule', 'severity', '==', 'ERROR', 'MEDIUM', 'Message 2')
+                """)
+            )
+            await db_session.flush()
+
+    @pytest.mark.asyncio
+    async def test_seeded_rules_exist(self, db_session: AsyncSession):
+        """The migration should have seeded 3 default global rules."""
+        result = await db_session.execute(
+            text("""
+                SELECT name FROM alert_rules 
+                WHERE project_id IS NULL 
+                ORDER BY name
+            """)
+        )
+        rules = [row[0] for row in result.fetchall()]
+        
+        assert "critical_event" in rules, "Should have critical_event rule"
+        assert "error_event" in rules, "Should have error_event rule"
+        assert "high_latency" in rules, "Should have high_latency rule"
+
+    @pytest.mark.asyncio
+    async def test_rule_enabled_default(self, db_session: AsyncSession):
+        """Rule should be enabled by default."""
+        result = await db_session.execute(
+            text("""
+                INSERT INTO alert_rules (name, field, operator, value, alert_level, message_template)
+                VALUES ('default_enabled', 'severity', '==', 'CRITICAL', 'HIGH', 'Test')
+                RETURNING enabled
+            """)
+        )
+        enabled = result.scalar()
+        
+        assert enabled is True, "Rule should be enabled by default"
 

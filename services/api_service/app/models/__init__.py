@@ -10,6 +10,7 @@ from app.models.project import Project
 from app.models.api_key import ApiKey
 from app.models.event import Event
 from app.models.alert import Alert
+from app.models.alert_rule import AlertRule
 
 # Export all models
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "ApiKey",
     "Event",
     "Alert",
+    "AlertRule",
 ]

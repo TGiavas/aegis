@@ -1,10 +1,11 @@
 """
 Alert rules for analytics service.
 
+Rules are now loaded from the database and evaluated dynamically.
 Each rule defines:
-- A condition to check
+- A condition to check (field, operator, value)
 - The alert level if triggered
-- The message to display
+- A message template with placeholders
 
 Rules are evaluated for each incoming event.
 """
@@ -12,7 +13,10 @@ Rules are evaluated for each incoming event.
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from app.config import settings
+from sqlalchemy import select, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import AlertRule
 
 
 @dataclass
@@ -23,76 +27,214 @@ class AlertTrigger:
     message: str
 
 
-def check_critical_error(event: Dict[str, Any]) -> Optional[AlertTrigger]:
+# =============================================================================
+# RULE FETCHING
+# =============================================================================
+
+
+async def get_effective_rules(
+    db: AsyncSession,
+    project_id: int,
+) -> list[AlertRule]:
     """
-    Rule: Immediate alert on CRITICAL severity events.
+    Fetch effective rules for a project.
     
-    Any event with severity=CRITICAL triggers a HIGH alert immediately.
-    """
-    if event.get("severity") == "CRITICAL":
-        return AlertTrigger(
-            rule_name="critical_event",
-            level="HIGH",
-            message=f"Critical event from {event.get('source')}: {event.get('event_type')}",
-        )
-    return None
-
-
-def check_high_latency(event: Dict[str, Any]) -> Optional[AlertTrigger]:
-    """
-    Rule: Alert on high latency events.
+    Returns global rules + project-specific overrides.
+    Project rules override global rules with the same name.
     
-    If latency_ms exceeds the threshold, trigger a MEDIUM alert.
+    Args:
+        db: Database session
+        project_id: The project to get rules for
+        
+    Returns:
+        List of effective AlertRule objects
     """
-    latency = event.get("latency_ms")
-    if latency and latency > settings.high_latency_threshold_ms:
-        return AlertTrigger(
-            rule_name="high_latency",
-            level="MEDIUM",
-            message=f"High latency detected: {latency}ms from {event.get('source')}",
+    # Get all enabled global rules and project-specific rules
+    query = (
+        select(AlertRule)
+        .where(
+            AlertRule.enabled == True,  # noqa: E712
+            or_(
+                AlertRule.project_id.is_(None),
+                AlertRule.project_id == project_id,
+            )
         )
-    return None
-
-
-def check_error_event(event: Dict[str, Any]) -> Optional[AlertTrigger]:
-    """
-    Rule: Alert on ERROR severity events.
+        .order_by(AlertRule.name)
+    )
+    result = await db.execute(query)
+    all_rules = result.scalars().all()
     
-    ERROR events trigger a MEDIUM alert.
-    """
-    if event.get("severity") == "ERROR":
-        return AlertTrigger(
-            rule_name="error_event",
-            level="MEDIUM",
-            message=f"Error event from {event.get('source')}: {event.get('event_type')}",
-        )
-    return None
+    # Dedupe: project rules override global rules with same name
+    rules_by_name: dict[str, AlertRule] = {}
+    for rule in all_rules:
+        if rule.name not in rules_by_name:
+            rules_by_name[rule.name] = rule
+        elif rule.project_id is not None:
+            # Project rule overrides global rule
+            rules_by_name[rule.name] = rule
+    
+    return list(rules_by_name.values())
 
 
 # =============================================================================
 # RULE EVALUATION
 # =============================================================================
 
-# List of all rules to check
-ALL_RULES = [
-    check_critical_error,
-    check_high_latency,
-    check_error_event,
-]
 
-
-def evaluate_event(event: Dict[str, Any]) -> list[AlertTrigger]:
+def _cast_value(value: str, target_type: type) -> Any:
     """
-    Evaluate all rules against an event.
+    Cast a string value to the target type.
     
-    Returns a list of triggered alerts (may be empty).
+    Args:
+        value: String value from the rule
+        target_type: Type to cast to (based on event field type)
+        
+    Returns:
+        Cast value, or original string if cast fails
     """
+    if target_type == int:
+        try:
+            return int(value)
+        except ValueError:
+            return value
+    elif target_type == float:
+        try:
+            return float(value)
+        except ValueError:
+            return value
+    elif target_type == bool:
+        return value.lower() in ("true", "1", "yes")
+    return value
+
+
+def _compare(event_value: Any, operator: str, rule_value: str) -> bool:
+    """
+    Compare an event field value against a rule value using the specified operator.
+    
+    Args:
+        event_value: Value from the event
+        operator: Comparison operator (==, !=, >, <, >=, <=)
+        rule_value: Value from the rule (as string)
+        
+    Returns:
+        True if the comparison matches, False otherwise
+    """
+    if event_value is None:
+        return False
+    
+    # Cast rule value to match event value type
+    typed_rule_value = _cast_value(rule_value, type(event_value))
+    
+    if operator == "==":
+        return event_value == typed_rule_value
+    elif operator == "!=":
+        return event_value != typed_rule_value
+    elif operator == ">":
+        try:
+            return event_value > typed_rule_value
+        except TypeError:
+            return False
+    elif operator == "<":
+        try:
+            return event_value < typed_rule_value
+        except TypeError:
+            return False
+    elif operator == ">=":
+        try:
+            return event_value >= typed_rule_value
+        except TypeError:
+            return False
+    elif operator == "<=":
+        try:
+            return event_value <= typed_rule_value
+        except TypeError:
+            return False
+    
+    return False
+
+
+def _format_message(template: str, event: Dict[str, Any]) -> str:
+    """
+    Format a message template with event values.
+    
+    Supports placeholders like {source}, {event_type}, {severity}, {latency_ms}.
+    Unknown placeholders are left as-is.
+    
+    Args:
+        template: Message template with {placeholder} syntax
+        event: Event data dictionary
+        
+    Returns:
+        Formatted message string
+    """
+    try:
+        # Use safe formatting that ignores missing keys
+        return template.format_map(SafeDict(event))
+    except Exception:
+        return template
+
+
+class SafeDict(dict):
+    """Dict subclass that returns placeholder for missing keys."""
+    
+    def __missing__(self, key: str) -> str:
+        return f"{{{key}}}"
+
+
+def evaluate_rule(rule: AlertRule, event: Dict[str, Any]) -> Optional[AlertTrigger]:
+    """
+    Evaluate a single rule against an event.
+    
+    Args:
+        rule: The AlertRule to evaluate
+        event: Event data dictionary
+        
+    Returns:
+        AlertTrigger if the rule matches, None otherwise
+    """
+    # Get the event field value
+    event_value = event.get(rule.field)
+    
+    # Compare using the rule's operator
+    if _compare(event_value, rule.operator, rule.value):
+        return AlertTrigger(
+            rule_name=rule.name,
+            level=rule.alert_level,
+            message=_format_message(rule.message_template, event),
+        )
+    
+    return None
+
+
+async def evaluate_event(
+    db: AsyncSession,
+    event: Dict[str, Any],
+) -> list[AlertTrigger]:
+    """
+    Evaluate all effective rules against an event.
+    
+    Fetches rules from the database and evaluates them dynamically.
+    
+    Args:
+        db: Database session
+        event: Event data dictionary (must include project_id)
+        
+    Returns:
+        List of triggered alerts (may be empty)
+    """
+    project_id = event.get("project_id")
+    if project_id is None:
+        print("⚠️  Event missing project_id, skipping rule evaluation")
+        return []
+    
+    # Fetch effective rules for this project
+    rules = await get_effective_rules(db, project_id)
+    
+    # Evaluate each rule
     triggers = []
-    
-    for rule_fn in ALL_RULES:
-        result = rule_fn(event)
+    for rule in rules:
+        result = evaluate_rule(rule, event)
         if result:
             triggers.append(result)
     
     return triggers
-

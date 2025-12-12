@@ -19,7 +19,7 @@ const levelColors: Record<string, string> = {
 export function AlertsPage() {
   // State
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<number>(0)
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showResolved, setShowResolved] = useState(false)
@@ -103,7 +103,7 @@ export function AlertsPage() {
         <div className="flex items-center gap-2">
           <label className="text-[var(--color-text-secondary)]">Project:</label>
           <select
-            value={selectedProjectId || ''}
+            value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(Number(e.target.value))}
             className="px-3 py-2 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-cyan)]"
           >

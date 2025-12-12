@@ -29,6 +29,7 @@ from app.core.db import Base
 
 if TYPE_CHECKING:
     from app.models.alert import Alert
+    from app.models.alert_rule import AlertRule
     from app.models.api_key import ApiKey
     from app.models.event import Event
     from app.models.user import User
@@ -132,6 +133,12 @@ class Project(Base):
     # A project can have many alerts
     alerts: Mapped[list["Alert"]] = relationship(
         "Alert",
+        back_populates="project",
+    )
+    
+    # A project can have custom alert rules (overrides for global rules)
+    alert_rules: Mapped[list["AlertRule"]] = relationship(
+        "AlertRule",
         back_populates="project",
     )
     

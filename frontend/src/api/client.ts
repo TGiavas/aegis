@@ -63,6 +63,39 @@ export interface Alert {
   resolved_at: string | null
 }
 
+export interface AlertRule {
+  id: number
+  name: string
+  project_id: number | null
+  field: string
+  operator: string
+  value: string
+  alert_level: string
+  message_template: string
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AlertRuleCreate {
+  name: string
+  field: string
+  operator: string
+  value: string
+  alert_level: string
+  message_template: string
+  enabled?: boolean
+}
+
+export interface AlertRuleUpdate {
+  field?: string
+  operator?: string
+  value?: string
+  alert_level?: string
+  message_template?: string
+  enabled?: boolean
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
@@ -85,9 +118,9 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     }
 
     if (this.token) {
@@ -213,6 +246,58 @@ class ApiClient {
   async resolveAlert(projectId: number, alertId: number) {
     return this.request<Alert>(`/projects/${projectId}/alerts/${alertId}/resolve`, {
       method: 'POST',
+    })
+  }
+
+  // Alert Rules - Global
+  async getGlobalRules() {
+    return this.request<{ items: AlertRule[]; total: number }>('/alert-rules')
+  }
+
+  async createGlobalRule(rule: AlertRuleCreate) {
+    return this.request<AlertRule>('/alert-rules', {
+      method: 'POST',
+      body: JSON.stringify(rule),
+    })
+  }
+
+  async updateGlobalRule(ruleId: number, rule: AlertRuleUpdate) {
+    return this.request<AlertRule>(`/alert-rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(rule),
+    })
+  }
+
+  async deleteGlobalRule(ruleId: number) {
+    return this.request<void>(`/alert-rules/${ruleId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Alert Rules - Project-specific
+  async getProjectRules(projectId: number) {
+    return this.request<{ items: AlertRule[]; total: number }>(
+      `/projects/${projectId}/alert-rules`
+    )
+  }
+
+  async createProjectRule(projectId: number, rule: AlertRuleCreate) {
+    return this.request<AlertRule>(`/projects/${projectId}/alert-rules`, {
+      method: 'POST',
+      body: JSON.stringify(rule),
+    })
+  }
+
+  async updateProjectRule(projectId: number, ruleId: number, rule: AlertRuleUpdate) {
+    return this.request<AlertRule>(`/projects/${projectId}/alert-rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(rule),
+    })
+  }
+
+  async deleteProjectRule(projectId: number, ruleId: number) {
+    return this.request<void>(`/projects/${projectId}/alert-rules/${ruleId}`, {
+      method: 'DELETE',
     })
   }
 }

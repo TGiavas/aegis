@@ -8,7 +8,8 @@ import { useAuth } from '../context/AuthContext'
 import { 
   LayoutDashboard, 
   Activity, 
-  Bell, 
+  Bell,
+  Settings2, 
   FolderOpen,
   LogOut,
   Shield
@@ -19,6 +20,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/events', label: 'Events', icon: Activity },
   { path: '/alerts', label: 'Alerts', icon: Bell },
+  { path: '/rules', label: 'Rules', icon: Settings2 },
   { path: '/projects', label: 'Projects', icon: FolderOpen },
 ]
 
